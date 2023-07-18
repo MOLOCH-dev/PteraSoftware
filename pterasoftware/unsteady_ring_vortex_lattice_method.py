@@ -15,6 +15,10 @@ import logging
 
 import numpy as np
 from tqdm import tqdm
+from scipy.integrate import quad
+from scipy.interpolate import interp2d, interp1d
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 from . import aerodynamics
 from . import functions
@@ -175,6 +179,8 @@ class UnsteadyRingVortexLatticeMethodSolver:
         self.current_wake_ring_vortex_back_right_vertices = None
         self.current_wake_ring_vortex_ages = None
         self.num_panels = None
+
+        self.figlist = []
 
     def run(
         self,
@@ -439,6 +445,16 @@ class UnsteadyRingVortexLatticeMethodSolver:
                 logging.info("Calculating the wing-wing influences.")
                 self.calculate_wing_wing_influences()
 
+                # Find the Aerodynamic force (Flat plate model) associated with current timestep
+                logging.info("Calculating the flat-plate aerodynamic influences")
+                self.calculate_flatplate_aerodynamics(airplane, self.current_operating_point, self.figlist)
+
+                # Find the Inertial Force associated with current timestep
+                logging.info("Calculating the inertial forces")
+
+                # Find the Aeroelastic force associated with current timestep
+                logging.info("Calculating the aeroelastic forces")
+
                 # Find the vector of freestream-wing influence coefficients associated
                 # with this problem.
                 logging.info("Calculating the freestream-wing influences.")
@@ -468,6 +484,9 @@ class UnsteadyRingVortexLatticeMethodSolver:
 
             logging.info("Calculating averaged or final forces and moments.")
             self.finalize_near_field_forces_and_moments()
+
+        fig, ax = plt.subplots()
+        plt.imshow(self.figlist[0])
 
         # Solve for the location of the streamlines if requested.
         if calculate_streamlines:
@@ -1733,3 +1752,137 @@ class UnsteadyRingVortexLatticeMethodSolver:
                 self.unsteady_problem.final_rms_near_field_moment_coefficients_wind_axes.append(
                     rms_moment_coefficients
                 )
+
+
+    def tau_aero_integrand(self, y):
+        return y**3
+
+    def f_aero_integrand(self, y):
+        return y**2
+
+    def tau_torsion_air(self, y, w, rho_air, C_D, c) :
+        return (1/8)*rho_air*(w**2)*C_D*y**2*c**2
+
+    def d_alpha_dy_air(self, y, w, rho_air, C_D, c):
+        return 2 * self.tau_torsion_air(y, w, rho_air, C_D, c)
+
+    def Cd_air(self, y, w, y_values, w_air, Cd_new_air):
+        # print(y)
+        return interp1d(y_values, Cd_new_air)(y)
+
+    def integrand_flex_air(self, y, w, c, y_values, w_air, Cd_new_air):
+        return y ** 3 * self.Cd_air(y, w, y_values, w_air, Cd_new_air) * c
+
+    def calculate_flatplate_aerodynamics(self, airplane, op, figlist):
+        """This method finds the matrix of wing-wing influence coefficients
+        associated with the airplanes' geometries.
+
+        :return: None
+        """
+        points = self.panel_collocation_points
+        # print(points)
+        # points = points.reshape((airplane.wings[0].num_chordwise_panels, airplane.wings[0].num_spanwise_panels, 3))
+        # # print(points.shape)
+        f_air = 5
+        rho_air = op.density
+        W = 2 #
+        y_values = points[:, 1][8:16]
+        # z_values_h = points[:,-1][8:16]
+        # print(z_values_h)
+        x_values = points.reshape((airplane.wings[0].num_chordwise_panels, airplane.wings[0].num_spanwise_panels, 3))[:,0,0]
+        # z_values_v = points.reshape((airplane.wings[0].num_chordwise_panels, airplane.wings[0].num_spanwise_panels, 3))[:,0,-1]
+        # print(z_values_v)
+        # b = airplane.wings[0].span
+        b = y_values[-1] - y_values[0]
+        c = airplane.wings[0].mean_aerodynamic_chord
+        theta = 1.2*(np.pi/4)
+        alpha = op.alpha
+        C_D = 1.17
+        M_wing = 0.010 #kg
+        I_wing = (1/3)*M_wing*b**2
+        x_morph = 0.3
+        w_air = (theta*2)*f_air
+        w_dot_max_air = 4*pow(np.pi,2)*np.power(f_air,2)*theta #rad/s2
+        tau_inertia_air = I_wing*w_dot_max_air
+        c_air = 0.14
+        tau_aero_air = (1/2) * rho_air * (w_air**2) * C_D * c * (quad(self.tau_aero_integrand, 0, b)[0])
+        f_aero_air = (1/2) * rho_air * (w_air**2) * C_D * c * (quad(self.f_aero_integrand, 0, b)[0])
+        tau_aero_air += tau_inertia_air
+        # print(points[1,:,0])
+
+        # print(y_values)
+        alpha_air = np.zeros((len(y_values)))
+        G = 1e4
+        I = (1/12)*(c_air*0.75)**3
+        for j in range(1, len(y_values)) :
+            alpha_air[j] = alpha_air[j-1] + quad(self.d_alpha_dy_air, y_values[j-1], y_values[j], args=(w_air, rho_air, C_D, c))[0]/(G*I)
+        # print(alpha_air)
+        Cd_new_air = np.zeros(len(alpha_air))
+        for i in range(1, len(alpha_air)) :
+            Cd_new_air[i] = 0.745 * ((np.pi/2) - alpha_air[i])
+        # -------------------------------
+        Cd_const_air = Cd_new_air
+        iteration = 0
+        max_iterations = 5
+        error_threshold = 0.001
+        CD_matrix_air = np.zeros((max_iterations, len(y_values)))
+        CD_matrix_air[0, :] = C_D
+        iterate = True
+        while (iterate and iteration < max_iterations) :
+            iteration = iteration + 1
+            alpha_air = np.zeros((len(y_values)))
+            for j in range(1, len(y_values)) :
+                alpha_air[j] = alpha_air[j-1] + quad(self.d_alpha_dy_air, y_values[j-1], y_values[j], args=(w_air, rho_air, C_D, c))[0]/(G*I)
+        #
+            Cd_new_air = np.zeros((len(alpha_air)))
+
+            for j in range(len(alpha_air)) :
+                Cd_new_air[j] = 0.745 * ((np.pi/2) - alpha_air[j])
+
+            error_air = abs(Cd_new_air - Cd_const_air) / Cd_const_air
+            error_exceeded_air = np.any(error_air[:] > error_threshold)
+
+            if (error_exceeded_air) :
+                CD_matrix_air[iteration+1, :] = Cd_const_air
+
+                Cd_const_air = Cd_new_air
+        #
+            else :
+                iterate = False
+                CD_matrix_air[iteration+1,:] = Cd_new_air
+
+        tau_air_flex = 0
+        # print(quad(self.integrand_flex_air, y_values[0], b, args=(w_air, c, y_values, w_air, Cd_new_air))[0])
+        tau_air_flex = (1/2) * rho_air * (w_air)**2 * (quad(self.integrand_flex_air, y_values[0], b, args=(w_air, c, y_values, w_air, Cd_new_air))[0])
+        # print(tau_air_flex)
+        # x_mesh, y_mesh = np.meshgrid(x_values, y_values)
+        x_mesh = points.reshape((airplane.wings[0].num_chordwise_panels, airplane.wings[0].num_spanwise_panels, 3))[:,8:16,0]
+        # print(x_mesh.shape)
+        y_mesh = points.reshape((airplane.wings[0].num_chordwise_panels, airplane.wings[0].num_spanwise_panels, 3))[:,8:16,1]
+        z_mesh = points.reshape((airplane.wings[0].num_chordwise_panels, airplane.wings[0].num_spanwise_panels, 3))[:,8:16,2]
+        # print(y_mesh.shape)
+        z_air = x_mesh* np.tile(np.sin(alpha_air), (len(x_values), 1))
+        # y_air = x_mesh * np.tile(np.cos(alpha_air), (len(x_values), 1))
+        # print(z_air)
+        # fig = plt.figure(figsize=(15,15), dpi=80)
+        # ax = fig.add_subplot(111, projection='3d')
+        # ax.plot_surface(x_mesh, y_mesh, z_air + z_mesh, color='blue')
+        # ax.plot_surface(x_mesh, y_mesh, z_mesh, color='red')
+        # ax.set_xlabel('x (m)')
+        # ax.set_ylabel('y (m)')
+        # ax.set_zlabel('z (m)')
+        # ax.set_title('Deformed Wing Geometry - Air, Frequency: {} Hz'.format(f_air))
+        # # figlist.append(fig)
+        # ax.view_init(0,45)
+        # fig.canvas.manager.window.wm_geometry("+%d+%d" % (20, 20))
+        # plt.show(block=True)
+        # plt.pause(1)
+        # plt.close('all')
+        # #                                                quad(self.integrand_flex_air, b/4, b/2, args=(w_air, c, y_values, w_air, Cd_new_air))[0] +
+        # # #                                                quad(self.integrand_flex_air, b/2, 3*b/4, args=(w_air, c, y_values, w_air, Cd_new_air))[0] +
+        # # #                                                quad(self.integrand_flex_air, 3*b/4, b, args=(w_air, c, y_values, w_air, Cd_new_air))[0])
+
+
+
+
+
