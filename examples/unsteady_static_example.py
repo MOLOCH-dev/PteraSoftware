@@ -3,6 +3,7 @@ lattice method solver on a custom airplane with static geometry. """
 
 import pterasoftware as ps
 import numpy as np
+import matplotlib.pyplot as plt
 
 cs_y_les = np.linspace(0, 3.30/10, 9)
 wing_cross_sections = []
@@ -47,7 +48,7 @@ example_airplane = ps.geometry.Airplane(
             y_le=0.0,
             z_le=0.0,
             symmetric=True,
-            num_chordwise_panels=8,
+            num_chordwise_panels=6,
             chordwise_spacing="uniform",
             wing_cross_sections=wing_cross_sections,
         ),
@@ -75,7 +76,7 @@ for wing_cs in example_airplane.wings[0].wing_cross_sections[1:]:
         ps.movement.WingCrossSectionMovement(
             # Provide the base cross-section.
             base_wing_cross_section=wing_cs,
-            sweeping_amplitude=54,
+            sweeping_amplitude=54/2,
             sweeping_period=1 / 5,
             sweeping_spacing="sine",
         )
@@ -173,7 +174,7 @@ example_operating_point = ps.operating_point.OperatingPoint(
     beta=0.0,
     # Define the freestream velocity at which the airplane is flying. This defaults
     # to 10.0 meters per second.
-    velocity=6.0,
+    velocity=5.0,
     # Define the angle of attack the airplane is experiencing. This defaults to 5.0
     # degrees.
     alpha=0.0,
@@ -213,9 +214,9 @@ movement = ps.movement.Movement(
     # the number of steps will be set such that the wake extends ten chord lengths
     # back from the main wing. If the geometry isn't static, the number of steps will
     # be set such that three periods of the slowest movement oscillation complete.
-    # num_steps=120,
-    delta_time=0.01,
-    # num_cycles=2,
+    num_steps=10,
+    # delta_time=0.001,
+    # num_cycles=1,
 )
 
 # Delete the extraneous airplane and operating point movement objects, as these are
@@ -283,27 +284,27 @@ ps.output.animate(
     scalar_type="lift",
     # Tell the animate function to show the wake vortices. This value defaults to
     # False.
-    show_wake_vortices=True,
+    show_wake_vortices=False,
     # Tell the animate function to not save the animation as file. This way,
     # the animation will still be displayed but not saved. This value defaults to
     # False.
     save=True,
 )
-#
-# # Call the software's plotting function on the solver. This produces graphs of the
-# # output forces and moments with respect to time.
-# ps.output.plot_results_versus_time(
-#     # Set the unsteady solver to the one we just ran.
-#     unsteady_solver=example_solver,
-#     # Set the show attribute to True, which is the default value. With this set to
-#     # show, some IDEs (such as PyCharm in "Scientific Mode") will display the plots
-#     # in a sidebar. Other IDEs may not display the plots, in which case you should
-#     # set the save attribute to True, and open the files after they've been saved to
-#     # the current directory.
-#     show=False,
-#     save=False,
-# )
-# plt.show()
+# #
+# # # Call the software's plotting function on the solver. This produces graphs of the
+# # # output forces and moments with respect to time.
+ps.output.plot_results_versus_time(
+    # Set the unsteady solver to the one we just ran.
+    unsteady_solver=example_solver,
+    # Set the show attribute to True, which is the default value. With this set to
+    # show, some IDEs (such as PyCharm in "Scientific Mode") will display the plots
+    # in a sidebar. Other IDEs may not display the plots, in which case you should
+    # set the save attribute to True, and open the files after they've been saved to
+    # the current directory.
+    show=True,
+    save=True,
+)
+plt.show()
 
 # Compare the output you see with the expected outputs saved in the "docs/examples
 # expected output" directory.
