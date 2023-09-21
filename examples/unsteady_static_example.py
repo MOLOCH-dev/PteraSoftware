@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 cs_y_les = np.linspace(0, 3.30/10, 9)
+print(len(cs_y_les), "lencsyles")
 wing_cross_sections = []
 for y in cs_y_les :
     wing_cross_sections.append(
@@ -77,7 +78,7 @@ for wing_cs in example_airplane.wings[0].wing_cross_sections[1:]:
             # Provide the base cross-section.
             base_wing_cross_section=wing_cs,
             sweeping_amplitude=54/2,
-            sweeping_period=1 / 5,
+            sweeping_period=1 / 10.8,
             sweeping_spacing="sine",
         )
     )
@@ -214,9 +215,9 @@ movement = ps.movement.Movement(
     # the number of steps will be set such that the wake extends ten chord lengths
     # back from the main wing. If the geometry isn't static, the number of steps will
     # be set such that three periods of the slowest movement oscillation complete.
-    num_steps=10,
+    # num_steps=50,
     # delta_time=0.001,
-    # num_cycles=1,
+    num_cycles=5,
 )
 
 # Delete the extraneous airplane and operating point movement objects, as these are
@@ -248,29 +249,29 @@ example_solver.run(
     # "Debug", "Info", "Warning", "Error", "Critical". The default value is "Warning".
     # logging_level="Warnn",
     # Use a prescribed wake model. This is faster, but may be slightly less accurate.
-    prescribed_wake=False,
+    prescribed_wake=True,
     calculate_streamlines=False,
 )
 
 # Call the software's draw function on the solver. Press "q" to close the plotter
 # after it draws the output.
-ps.output.draw(
-    # Set the solver to the one we just ran.
-    solver=example_solver,
-    # Tell the draw function to color the aircraft's wing panels with the local lift
-    # coefficient. The valid arguments for this parameter are None, "induced drag",
-    # "side force", or "lift".
-    scalar_type="lift",
-    # Tell the draw function to show the calculated streamlines. This value defaults
-    # to False.
-    show_streamlines=False,
-    # Tell the draw function to not show the wake vortices. This value defaults to
-    # False.
-    show_wake_vortices=False,
-    # Tell the draw function to not save the drawing as an image file. This way,
-    # the drawing will still be displayed but not saved. This value defaults to False.
-    save=False,
-)
+# ps.output.draw(
+#     # Set the solver to the one we just ran.
+#     solver=example_solver,
+#     # Tell the draw function to color the aircraft's wing panels with the local lift
+#     # coefficient. The valid arguments for this parameter are None, "induced drag",
+#     # "side force", or "lift".
+#     scalar_type="lift",
+#     # Tell the draw function to show the calculated streamlines. This value defaults
+#     # to False.
+#     show_streamlines=False,
+#     # Tell the draw function to not show the wake vortices. This value defaults to
+#     # False.
+#     show_wake_vortices=False,
+#     # Tell the draw function to not save the drawing as an image file. This way,
+#     # the drawing will still be displayed but not saved. This value defaults to False.
+#     save=False,
+# )
 #
 # Call the software's animate function on the solver. This produces a GIF of the wake
 # being shed. The GIF is saved in the same directory as this script. Press "q",
@@ -281,7 +282,7 @@ ps.output.animate(
     # Tell the animate function to color the aircraft's wing panels with the local
     # lift coefficient. The valid arguments for this parameter are None, "induced drag",
     # "side force", or "lift".
-    scalar_type="lift",
+    scalar_type=None,
     # Tell the animate function to show the wake vortices. This value defaults to
     # False.
     show_wake_vortices=False,
@@ -290,20 +291,20 @@ ps.output.animate(
     # False.
     save=True,
 )
-# #
-# # # Call the software's plotting function on the solver. This produces graphs of the
-# # # output forces and moments with respect to time.
-ps.output.plot_results_versus_time(
-    # Set the unsteady solver to the one we just ran.
-    unsteady_solver=example_solver,
-    # Set the show attribute to True, which is the default value. With this set to
-    # show, some IDEs (such as PyCharm in "Scientific Mode") will display the plots
-    # in a sidebar. Other IDEs may not display the plots, in which case you should
-    # set the save attribute to True, and open the files after they've been saved to
-    # the current directory.
-    show=True,
-    save=True,
-)
+# # #
+# # # # Call the software's plotting function on the solver. This produces graphs of the
+# # # # output forces and moments with respect to time.
+# ps.output.plot_results_versus_time(
+#     # Set the unsteady solver to the one we just ran.
+#     unsteady_solver=example_solver,
+#     # Set the show attribute to True, which is the default value. With this set to
+#     # show, some IDEs (such as PyCharm in "Scientific Mode") will display the plots
+#     # in a sidebar. Other IDEs may not display the plots, in which case you should
+#     # set the save attribute to True, and open the files after they've been saved to
+#     # the current directory.
+#     show=True,
+#     save=True,
+# )
 plt.show()
 
 # Compare the output you see with the expected outputs saved in the "docs/examples
