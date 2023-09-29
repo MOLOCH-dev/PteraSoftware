@@ -78,7 +78,11 @@ for wing_cs in example_airplane.wings[0].wing_cross_sections[1:]:
             # Provide the base cross-section.
             base_wing_cross_section=wing_cs,
             sweeping_amplitude=54/2,
-            sweeping_period=1 / 10.8,
+            # sweeping_period=1 / 4.7,
+            # sweeping_period=1 / 7.6,
+            sweeping_period=1 / 9.7,
+            # sweeping_period=1 / 10.8,
+            # sweeping_period=1 / 11.5,
             sweeping_spacing="sine",
         )
     )
@@ -282,7 +286,7 @@ ps.output.animate(
     # Tell the animate function to color the aircraft's wing panels with the local
     # lift coefficient. The valid arguments for this parameter are None, "induced drag",
     # "side force", or "lift".
-    scalar_type=None,
+    scalar_type="lift",
     # Tell the animate function to show the wake vortices. This value defaults to
     # False.
     show_wake_vortices=False,

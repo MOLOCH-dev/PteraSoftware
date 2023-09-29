@@ -178,6 +178,7 @@ def draw(
 
         # Get the scalars
         these_scalars = get_scalars(airplanes, scalar_type)
+        print(these_scalars)
         min_scalar = round(min(these_scalars), 2)
         max_scalar = round(max(these_scalars), 2)
 
@@ -319,6 +320,7 @@ def animate(
     if requested_fps > 50:
         speed = 50 / requested_fps
     actual_fps = math.floor(requested_fps * speed)
+    actual_fps = 10
 
     # Initialize the plotter and get the color map.
     plotter = pv.Plotter(window_size=window_size, lighting=None)

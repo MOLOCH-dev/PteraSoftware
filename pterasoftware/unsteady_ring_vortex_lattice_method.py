@@ -195,10 +195,15 @@ class UnsteadyRingVortexLatticeMethodSolver:
 
         # Initialize variable to store UVLM force data pertaining to current time step
         self.uvlm_current_forces = []
+        self.uvlm_current_moments = []
 
         # Initialize variables/counters pertaining to torsion angle convergence
         self.repeat = True  # Boolean to track steps required in convergence
         self.true_torsion_angles = []  # Container to store intermediate torsion angle data until convergence
+
+        # Variables for plotting forces
+        self.plot_current_uvlm_forces = []
+        self.plot_current_inertia_forces = []
 
     def run(
             self,
@@ -521,19 +526,25 @@ class UnsteadyRingVortexLatticeMethodSolver:
         #
         # # torsion_slope_array = []
         # for span_panel in range(9) :
-        ax1.plot(np.array(self.torsion_angle)[:,2]*180/np.pi, label="Spanwise Panel {}".format(3))
+        # ax1.plot(np.array(self.torsion_angle)[:,3], label="Spanwise Panel {}".format(8))
+        # ax1.plot(np.array(self.plot_current_uvlm_forces), label='UVLM Aero Force on Panels')
+        # ax1.plot(np.array(self.plot_current_inertia_forces), label='Inertia Force on Panel [4,3]')
         ax2.plot(np.array(self.flapping_angle)*180/np.pi, label='Flapping angle',linestyle='dashed', color='purple')
         # # # ax1.plot(x_axis, np.sum(np.array(self.torsion_angle), axis=1), label="Sum of s panel torsion")
         # for i in range(6):
-        #     ax1.plot(x_axis, np.array(np.array(self.uvlm_z_forces).T[i]), label="Aero. Force Panel {}".format(i))
+            # ax1.plot(np.array(self.plot_current_uvlm_forces)[:, i], label="UVLM Aero. Force Panel {}".format(i))
+            # ax1.plot(np.array(self.plot_current_inertia_forces)[:, i], label="Inertia Force Panel {}".format(i))
+        for i in range(9):
+            ax1.plot(np.array(self.torsion_angle)[:, i], label="Torsion Angle on Panel {}".format(i))
         ax1.set_xlabel("step")
         ax1.set_ylabel("Torsion angle (degrees)")
+        # ax1.set_ylabel("UVLM Z Forces")
         # true_flapping_angle = np.repeat(self.flapping_angle, 2)
         # ax2.plot(true_x_axis, true_flapping_angle * 180/np.pi, linestyle='dashed', color="purple")
         # ax2.plot(true_x_axis, np.array(self.flapping_angle), linestyle='dashed', color='purple')
         ax1.legend(loc="best")
         ax2.set_ylabel("Flapping angle (degrees)", color="purple")
-        # plt.title("Evolution of Aero force on panel")
+        plt.title("Spanwise Torsion Angle")
         #
         #
         # # ax1.plot(x_axis, np.array(self.beam_force), label="Inertial Torsion Angle") #Rx(alpha_flap).T*
@@ -549,7 +560,7 @@ class UnsteadyRingVortexLatticeMethodSolver:
         # # ax1.legend(loc="best")
         # # plt.title("Aero and Inertial Torsion Angle at Centre Panel [3,4] (Nm)")
         # ax2.legend(loc="best")
-        # mpl_axes_aligner.align.yaxes(ax1, 0, ax2, 0, 0.5)
+        mpl_axes_aligner.align.yaxes(ax1, 0, ax2, 0, 0.5)
         plt.show()
         # #
         #
@@ -1095,7 +1106,7 @@ class UnsteadyRingVortexLatticeMethodSolver:
         )
         )
         unsteady_near_field_forces_geometry_axes = (
-                self.current_operating_point.density
+                - self.current_operating_point.density
                 * np.expand_dims(
             (self.current_vortex_strengths - self.last_panel_vortex_strengths),
             axis=1,
@@ -1149,6 +1160,7 @@ class UnsteadyRingVortexLatticeMethodSolver:
         )
 
         self.uvlm_current_forces = near_field_forces_geometry_axes
+        self.uvlm_current_moments = near_field_moments_geometry_axes
 
         functions.process_unsteady_solver_forces(
             unsteady_solver=self,
@@ -1853,7 +1865,7 @@ class UnsteadyRingVortexLatticeMethodSolver:
         y_values = points[:, 1][int(num_spanwise_panels/2):num_spanwise_panels]
 
         # Torsional rigidity of carbon fiber on leading edge (Pa)
-        G = 5e8
+        G = 11e8
         # Current timestep
         dt = self.unsteady_problem.delta_time
 
@@ -1894,7 +1906,7 @@ class UnsteadyRingVortexLatticeMethodSolver:
         current_torsion_aero = np.zeros(int(num_spanwise_panels / 2))
 
         # Inertial forces along Z axis on wing mesh
-        force_inertial_ptera = current_points_acceleration_halfspan[:, :, 2] * point_mass
+        force_inertial_ptera = - current_points_acceleration_halfspan[:, :, 2] * point_mass
         # Torsion on LE due to Inertial forces
         current_torsion_inertia = np.zeros(int(num_spanwise_panels/2))
 
@@ -1915,27 +1927,28 @@ class UnsteadyRingVortexLatticeMethodSolver:
                 current_torsion_inertia[span_panel] = force_inertial_ptera[chord_panel][span_panel] \
                                                    * (x_values[chord_panel][span_panel] - x_values[0][span_panel])
                 # Total torsion on LE due to chordwise panel. Aero and Inertial Torsion are oriented in opposite sense
+                adjacent_y_val = 0 if span_panel < 1 else y_values[span_panel - 1]
                 chord_torsion_angles[span_panel] += \
-                    quad(self.d_alpha_dy_air_static, y_values[span_panel - 1], y_values[span_panel],
-                         args=((current_torsion_aero[chord_panel]-current_torsion_inertia[chord_panel]),
+                    quad(self.d_alpha_dy_air_static, adjacent_y_val, y_values[span_panel],
+                         args=((current_torsion_aero[chord_panel] + current_torsion_inertia[chord_panel]),
                                G * I_area))[0]
             # Torsion on span-wise collection of panels
-            span_torsion_angles[span_panel] = span_torsion_angles[span_panel-1] + chord_torsion_angles[span_panel]
+            span_torsion_angles[span_panel] = span_torsion_angles[span_panel-1] + chord_torsion_angles[span_panel] if \
+                span_panel > 0 else chord_torsion_angles[span_panel]
 
         # Inserting torsion of static span-wise collection of panels at wing root
         span_torsion_angles = np.insert(span_torsion_angles, 0, 0)
-        print(self.last_torsion_angles, "last torsion angles")
-        print(span_torsion_angles, "span torsion angles")
         # Convergence of torsion angle
         # Error in torsion angle (radians)
         error_torsion = abs(span_torsion_angles - self.last_torsion_angles)
-        if step < 2*self.num_steps/5:
+
+        if step < 1*self.num_steps/5:
             # Error threshold for 1st and 2nd cycle is high to account for initial spike in forces in UVLM
             error_threshold = 5
         else:
-            # Error threshold in subsequeny timesteps is set to 5 radians
+            # Error threshold in subsequeny timesteps is set to 10 radians
             # TODO : Determine appropriate error threshold by running test cases on changing wing twist
-            error_threshold = 5 * np.pi/180
+            error_threshold = 20 * np.pi/180 #
 
         # Boolean to determine if change in torsion on any panel exceeds error threshold
         error_exceeded_air = np.any(error_torsion[1:] > error_threshold)
@@ -1963,6 +1976,10 @@ class UnsteadyRingVortexLatticeMethodSolver:
         self.last_points_velocity = current_points_velocity
         self.last_torsion_angles = span_torsion_angles
         self.true_torsion_angles.append(span_torsion_angles)
+
+        # Plotting utils
+        self.plot_current_uvlm_forces.append(np.array(force_aero_ptera)[:, 3])
+        self.plot_current_inertia_forces.append(np.array(force_inertial_ptera)[:, 3])
 
     def create_new_wing(self, wing, airplane, torsion_angle, freestream_velocity) :
         """This method redefines the current airplane by defining :
@@ -2101,3 +2118,10 @@ class UnsteadyRingVortexLatticeMethodSolver:
 
         # Recalculate current vortex strengths
         self.calculate_vortex_strengths()
+
+        # Process forces and update force coefficients for each panel
+        functions.process_unsteady_solver_forces(
+            unsteady_solver=self,
+            near_field_forces_geometry_axes=self.uvlm_current_forces,
+            near_field_moments_geometry_axes=self.uvlm_current_moments
+        )
