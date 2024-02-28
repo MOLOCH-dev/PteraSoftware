@@ -12,7 +12,7 @@ Where,
 ![Aeroelastic Feedback Variables](assets/aeroelastic_feedback_variables.png)
 
 ### Functions
-#### [calculate_aeroelastic_response](pterasoftware/unsteady_ring_vortex_lattice_method.py)
+#### [calculate_aeroelastic_response](https://github.com/MOLOCH-dev/PteraSoftware/blob/446b18ebc34f91f703c73361e0fc57323cd0b612/pterasoftware/unsteady_ring_vortex_lattice_method.py#L1815)
 This function :
 - Obtains current aerodynamic forces from PteraSoftware's U.V.L.M. solver
 ![UVLM Forces](assets/uvlm_forces.JPG)
@@ -22,7 +22,7 @@ This function :
 ![Inertial Forces](assets/inertial_forces.JPG)
 - Runs convergence loop to obtain torsion angle of each cross-section due to aerodynamic and inertial forces
 ![Torsion Angle](assets/torsion_angle_pseudocode.JPG)
-- Redefines wing for current timestep (function : create_new_wing())
+- Redefines wing for current timestep ([function : create_new_wing()](https://github.com/MOLOCH-dev/PteraSoftware/blob/446b18ebc34f91f703c73361e0fc57323cd0b612/pterasoftware/unsteady_ring_vortex_lattice_method.py#L1953))
 
 ### Overall code flow
 ![Algorithm flow](assets/algo_flow.JPG)
