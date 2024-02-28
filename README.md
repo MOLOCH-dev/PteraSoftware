@@ -284,6 +284,10 @@ Bruno Roccia, Sergio Preidikman, Julio Massa, and Dean Mook for details.
 workflow in Ptera Software for controls systems identification for flapping-wing 
 vehicles.
 
+### Aeroelasticity Module
+
+* For more information about the Aeroelasticity Module, please refer to [this markdown file](./Aeroelastic_Module.md)
+
 ## Credits
 
 Here is a list of all the people and packages that helped me created Ptera Software in
